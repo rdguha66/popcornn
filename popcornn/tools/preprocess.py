@@ -42,27 +42,27 @@ def process_images(raw_images):
     
     assert len(raw_images) >= 2, "Must have at least two images."
     dtype = type(raw_images[0])
-    if dtype == np.ndarray:
+    if dtype is np.ndarray:
         raw_images = torch.tensor(raw_images, dtype=torch.float64)
         processed_images = Images(
             dtype=dtype,
             points=raw_images,
             vec=raw_images[-1] - raw_images[0],
         )
-    elif dtype == list:
+    elif dtype is list:
         raw_images = torch.tensor(raw_images, dtype=torch.float64)
         processed_images = Images(
             dtype=dtype,
             points=raw_images,
             vec=raw_images[-1] - raw_images[0],
         )
-    elif dtype == torch.Tensor:
+    elif dtype is torch.Tensor:
         processed_images = Images(
             dtype=dtype,
             points=raw_images.float64(),
             vec=(raw_images[-1] - raw_images[0]).float64(),
         )
-    elif dtype == ase.Atoms:
+    elif issubclass(dtype, ase.Atoms):
         assert np.all(image.get_positions().shape == raw_images[0].get_positions().shape for image in raw_images), "All images must have the same shape."
         assert np.all(image.get_atomic_numbers() == raw_images[0].get_atomic_numbers() for image in raw_images), "All images must have the same atomic numbers."
         assert np.all(image.get_pbc() == raw_images[0].get_pbc() for image in raw_images), "All images must have the same pbc."

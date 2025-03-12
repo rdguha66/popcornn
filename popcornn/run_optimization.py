@@ -43,8 +43,6 @@ def optimize_MEP(
         path_params: dict[str, Any] = {},
         integrator_params: dict[str, Any] = {},
         optimizer_params: dict[str, Any] = {},
-        scheduler_params: dict[str, Any] = {},
-        loss_scheduler_params: dict[str, Any] = {},
         num_optimizer_iterations: int = 1001,
         num_record_points: int = 101,
         device: str = 'cuda',
@@ -146,7 +144,7 @@ def optimize_MEP(
     ts_time = path.TS_time
     path_output = path(time, return_velocity=True, return_energy=True, return_force=True)
     ts_output = path(ts_time, return_velocity=True, return_energy=True, return_force=True)
-    if images.dtype == Atoms:
+    if issubclass(images.dtype, Atoms):
         images, ts_images = output_to_atoms(path_output, images), output_to_atoms(ts_output, images)
         return images, ts_images[0]
     else:
