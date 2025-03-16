@@ -62,17 +62,11 @@ def output_to_atoms(output, ref_images):
             cell=ref_images.cell.detach().cpu().numpy(),
             tags=ref_images.tags.detach().cpu().numpy(),
         )
-        if forces.ndim == 1:
-            calc = SinglePointCalculator(
-                atoms,
-                energy=energy.detach().cpu().numpy().item(),
-                forces=forces.detach().cpu().numpy().reshape(n_atoms, 3),
-            )
-        else:
-            calc = SinglePointCalculator(
-                atoms,
-                energy=energy.detach().cpu().numpy().item(),
-            )
+        calc = SinglePointCalculator(
+            atoms,
+            energy=energy.detach().cpu().numpy().item(),
+            forces=forces.detach().cpu().numpy().reshape(n_atoms, 3),
+        )
         atoms.calc = calc
         images.append(atoms)
     return images
