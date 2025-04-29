@@ -92,7 +92,6 @@ class Popcornn:
         """
         # Optimize the path
         for i, params in enumerate(opt_params):
-            print("OPT LOOP", i, params)
             if self.output_dir is not None:
                 output_dir = f"{self.output_dir}/opt_{i}"
             else:
@@ -170,8 +169,6 @@ class Popcornn:
                         }, 
                         file,
                     )
-                if optim_idx > 5:
-                    break #DEBUG 
 
             # Check for convergence
             if optimizer.converged:
