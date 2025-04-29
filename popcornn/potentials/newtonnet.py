@@ -40,7 +40,7 @@ class NewtonNetPotential(BasePotential):
         model = calc.models[0]
         # model.aggregators[0] = NullAggregator()
         model.eval()
-        # model.output_layers[1].create_graph = True
+        model.output_layers[1].create_graph = True
         model.to(torch.float64)
         model.requires_grad_(False)
         model.embedding_layer.requires_dr = False
