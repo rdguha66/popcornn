@@ -468,14 +468,14 @@ class Metrics():
         Epvre_mag = torch.linalg.norm(variables['velocity']*variables['force'])
         return Epvre_mag, variables
 
-    
+
     def E(self, get_required_variables=False, **kwargs):
         if get_required_variables:
             return ('energy') 
         variables = self._parse_input(**kwargs)
         
         return variables['energy'], variables
-
+      
 
     def E_mean(self, get_required_variables=False, **kwargs):
         if get_required_variables:

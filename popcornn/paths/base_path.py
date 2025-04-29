@@ -64,11 +64,9 @@ class BasePath(torch.nn.Module):
     """
     initial_point: torch.Tensor
     final_point: torch.Tensor
-    potential: BasePotential
 
     def __init__(
             self,
-            potential: BasePotential,
             images: Images,
             device: torch.device = None,
             find_TS: bool = True,
@@ -79,8 +77,6 @@ class BasePath(torch.nn.Module):
 
         Parameters:
         -----------
-        potential : callable
-            The potential function.
         initial_point : torch.Tensor
             The initial point of the path.
         final_point : torch.Tensor
@@ -91,7 +87,7 @@ class BasePath(torch.nn.Module):
         super().__init__()
         self.neval = 0
         self.find_TS = find_TS
-        self.potential = potential
+        self.potential = None
         self.initial_point = images.points[0].to(device)
         self.final_point = images.points[-1].to(device)
         self.vec = images.vec.to(device)
@@ -111,6 +107,20 @@ class BasePath(torch.nn.Module):
         )
         self.TS_time = None
         self.TS_region = None
+
+    def set_potential(
+            self,
+            potential: BasePotential,
+    ) -> None:
+        """
+        Set the potential function.
+
+        Parameters:
+        -----------
+        potential : BasePotential
+            The potential function to be used.
+        """
+        self.potential = potential
 
     def get_geometry(
             self,
