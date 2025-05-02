@@ -20,15 +20,15 @@ class ODEintegrator(Metrics):
     def __init__(
             self,
             method='dopri5',
-            rtol=1e-7,
-            atol=1e-9,
+            rtol=1e-6,
+            atol=1e-7,
             computation='parallel',
             sample_type='uniform',
             remove_cut=0.1,
             path_loss_name=None,
             path_loss_params={},
             path_ode_names=None,
-            path_ode_scales=torch.ones(1),
+            path_ode_scales=None,
             path_ode_energy_idx=1,
             path_ode_force_idx=2,
             process=None,
@@ -112,7 +112,7 @@ class ODEintegrator(Metrics):
         self.loss_fxn = get_loss_fxn(path_loss_name, **path_loss_params)
 
     
-    def integrator(
+    def integrate(
             self,
             path,
             ode_fxn_scales={},
@@ -147,13 +147,14 @@ class ODEintegrator(Metrics):
         return integral_output
 
 
-    def path_integral(
+    def integrate_path(
             self,
             path,
             ode_fxn_scales={},
             loss_scales={},
             t_init=torch.tensor([0.], dtype=torch.float64),
             t_final=torch.tensor([1.], dtype=torch.float64),
+            times=None,
             record_evals=False
         ):
         # Check scales names
@@ -161,12 +162,13 @@ class ODEintegrator(Metrics):
         if record_evals:
             path.begin_time_recording()
         
-        integral_output = self.integrator(
+        integral_output = self.integrate(
             path=path,
             ode_fxn_scales=ode_fxn_scales,
             loss_scales=loss_scales,
             t_init=t_init,
-            t_final=t_final
+            t_final=t_final,
+            times=times
         )
 
         if record_evals:
