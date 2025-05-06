@@ -52,10 +52,10 @@ def output_to_atoms(output, ref_images):
         List of Atoms objects.
     """
     images = []
-    n_atoms = len(ref_images.numbers)
+    n_atoms = len(ref_images.atomic_numbers)
     for positions, energy, velocities, forces in zip(output.position, output.energy, output.velocity, output.force):
         atoms = ase.Atoms(
-            numbers=ref_images.numbers.detach().cpu().numpy(),
+            atomic_numbers=ref_images.atomic_numbers.detach().cpu().numpy(),
             positions=positions.detach().cpu().numpy().reshape(n_atoms, 3),
             velocities=velocities.detach().cpu().numpy().reshape(n_atoms, 3),
             pbc=ref_images.pbc.detach().cpu().numpy(),
@@ -81,7 +81,7 @@ def wrap_points(
     Assume periodic boundary conditions for all dimensions.
     """
 
-    fractional = torch.linalg.solve(cell.T, points.view(*points.shape[:-1], -1, 3).transpose(-1, -2)).transpose(-1, -2)
+    fractional = torch.linalg.solve(cell.T, positions.view(*points.shape[:-1], -1, 3).transpose(-1, -2)).transpose(-1, -2)
 
     # fractional[..., :, self.pbc] %= 1.0
     fractional = (fractional + center) % 1.0 - center    # TODO: Modify this to handle partially true PBCs

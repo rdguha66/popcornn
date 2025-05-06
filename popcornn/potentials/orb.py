@@ -19,22 +19,22 @@ class OrbPotential(BasePotential):
         self.model = self.load_model(model_path)
         self.use_autograd = use_autograd
         self.n_eval = 0
-        self.atomic_numbers_embedding = one_hot(self.numbers, num_classes=118).double()
+        self.atomic_numbers_embedding = one_hot(self.atomic_numbers, num_classes=118).double()
 
     
-    def forward(self, points):
-        data = self.data_formatter(points)
+    def forward(self, positions):
+        data = self.data_formatter(positions)
         pred = self.model.predict(data)
         # pred = self.model(data.to_dict(), training=True)
         self.n_eval += 1
         if self.use_autograd:
-            energy = pred['graph_pred'].view(*points.shape[:-1], 1)
-            return PotentialOutput(energy=energy)
+            energies = pred['graph_pred'].view(*positions.shape[:-1], 1)
+            return PotentialOutput(energies=energies)
         else:
-            energy = pred['graph_pred'].view(*points.shape[:-1], 1)
-            force = pred['node_pred'].view(*points.shape)
-            force = force.view(*points.shape)
-            return PotentialOutput(energy=energy, force=force)
+            energies = pred['graph_pred'].view(*positions.shape[:-1], 1)
+            forces = pred['node_pred'].view(*positions.shape)
+            forces = forces.view(*positions.shape)
+            return PotentialOutput(energies=energies, forces=forces)
         
 
     def load_model(self, model_path):
@@ -53,7 +53,7 @@ class OrbPotential(BasePotential):
         recievers, senders = radius_graph(positions, batch=batch, r=10.0, max_num_neighbors=20)
         n_node = n_atoms.repeat(n_data)
         n_edge = torch.tensor([len(recievers)], device=self.device)
-        atomic_numbers = self.numbers.repeat(n_data)
+        atomic_numbers = self.atomic_numbers.repeat(n_data)
         atomic_numbers_embedding = self.atomic_numbers_embedding.repeat(n_data, 1)
         node_features = {
             'atomic_numbers': atomic_numbers,

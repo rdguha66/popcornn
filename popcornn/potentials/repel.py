@@ -31,36 +31,29 @@ class RepelPotential(BasePotential):
         self.beta = beta
         self.r0 = None
     
-    def forward(self, points):
+    def forward(self, positions):
         if self.r0 is None:
-            self.set_r0(self.numbers)
+            self.set_r0(self.atomic_numbers)
             
-        points_3d = points.view(-1, self.n_atoms, 3)
-        r = torch.norm(points_3d[:, self.ind[0]] - points_3d[:, self.ind[1]], dim=-1)
-        energyterms = (
+        positions_3d = positions.view(-1, self.n_atoms, 3)
+        r = torch.norm(positions_3d[:, self.ind[0]] - positions_3d[:, self.ind[1]], dim=-1)
+        energies_decomposed = (
             (torch.exp(-self.alpha * (r - self.r0) / self.r0) + self.beta * self.r0 / r)
             # * torch.sigmoid((self.r_max - r) / self.skin)
         )
-        energy = energyterms.sum(dim=-1, keepdim=True) 
+        energies = energies_decomposed.sum(dim=-1, keepdim=True) 
         return PotentialOutput(
-            energy=energy,
-            energyterms=energyterms,
-            force=self.calculate_conservative_force(energy, points),
-            forceterms=self.calculate_conservative_forceterms(energyterms, points)
+            energies=energies,
+            energies_decomposed=energies_decomposed,
+            forces=self.calculate_conservative_forces(energies, positions),
+            forces_decomposed=self.calculate_conservative_forces_decomposed(energies_decomposed, positions)
         )
 
-        # force = torch.vmap(
-        #     lambda vec: torch.autograd.grad(
-        #         energyterms.flatten(), points, grad_outputs=vec, create_graph=True, retain_graph=True
-        #     )[0],
-        # )(torch.eye(energyterms.shape[1], device=self.device).repeat(1, energyterms.shape[0])).transpose(0, 1)
-        # return PotentialOutput(energy=energy, force=force)
-    
-    def set_r0(self, numbers):
+    def set_r0(self, atomic_numbers):
         """
         Set the r0_ij values for the potential
         """
-        radii = torch.tensor([covalent_radii[n] for n in numbers], device=self.device)
+        radii = torch.tensor([covalent_radii[n] for n in atomic_numbers], device=self.device)
         r0 = radii.view(-1, 1) + radii.view(1, -1)
         self.ind = torch.triu_indices(r0.shape[0], r0.shape[1], offset=1, device=self.device)
         self.r0 = r0[None, self.ind[0], self.ind[1]]

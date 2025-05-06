@@ -19,18 +19,18 @@ class CHGNetPotential(BasePotential):
         super().__init__(**kwargs)
         self.model = self.load_model(model_path)
         self.n_eval = 0
-        self.node_attrs = one_hot(self.numbers, num_classes=118)[:, self.model.atomic_numbers].double()
+        self.node_attrs = one_hot(self.atomic_numbers, num_classes=118)[:, self.model.atomic_numbers].double()
 
     
-    def forward(self, points):
-        data = self.data_formatter(points)
+    def forward(self, positions):
+        data = self.data_formatter(positions)
         pred = self.model(data.to_dict(), compute_force=False)
         self.n_eval += 1
-        energy = pred['energy'].view(*points.shape[:-1], 1)
-        # force = pred['forces'].view(*points.shape)
-        return PotentialOutput(energy=energy)
-        # force = force.view(*points.shape)
-        # return PotentialOutput(energy=energy, force=force)
+        energies = pred['energy'].view(*positions.shape[:-1], 1)
+        # forces = pred['forces'].view(*positions.shape)
+        return PotentialOutput(energies=energies)
+        # forces = forces.view(*positions.shape)
+        # return PotentialOutput(energies=energies, forces=forces)
         
 
     def load_model(self, model_path):

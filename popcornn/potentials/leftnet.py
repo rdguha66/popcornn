@@ -18,22 +18,22 @@ class LeftNetPotential(BasePotential):
         self.model = self.load_model(model_path)
         self.use_autograd = use_autograd
         self.n_eval = 0
-        self.one_hots = one_hot(self.numbers, num_classes=118)[:, [1, 6, 7, 8, 0]].double()
+        self.one_hots = one_hot(self.atomic_numbers, num_classes=118)[:, [1, 6, 7, 8, 0]].double()
 
     
-    def forward(self, points):
-        data = self.data_formatter(points)
+    def forward(self, positions):
+        data = self.data_formatter(positions)
         if self.use_autograd:
             pred = self.model.forward_autograd(data)
         else:
             pred = self.model.forward(data)
         self.n_eval += 1
-        energy = pred[0]
-        force = pred[1]
-        energy = energy.view(*points.shape[:-1], 1)
-        # return PotentialOutput(energy=energy)
-        force = force.view(*points.shape)
-        return PotentialOutput(energy=energy, force=force)
+        energies = pred[0]
+        forces = pred[1]
+        energies = energies.view(*positions.shape[:-1], 1)
+        # return PotentialOutput(energies=energies)
+        forces = forces.view(*positions.shape)
+        return PotentialOutput(energies=energies, forces=forces)
         
 
     def load_model(self, model_path):
@@ -50,7 +50,7 @@ class LeftNetPotential(BasePotential):
             natoms=n_atoms.repeat(n_data),
             pos=pos.view(n_data * n_atoms, 3),
             one_hot=self.one_hots.repeat(n_data, 1),
-            charges=self.numbers.repeat(n_data),
+            charges=self.atomic_numbers.repeat(n_data),
             batch=torch.arange(n_data, device=self.device).repeat_interleave(n_atoms),
             ae=n_atoms.repeat(n_data),
         )

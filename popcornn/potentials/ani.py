@@ -18,13 +18,13 @@ class AniPotential(BasePotential):
         self.n_eval = 0
 
     
-    def forward(self, points):
-        data = self.data_formatter(points)
+    def forward(self, positions):
+        data = self.data_formatter(positions)
         pred = self.model(data)
         self.n_eval += 1
-        energy = pred.energies.view(*points.shape[:-1], 1) * HARTREE_TO_EV
-        force = self.calculate_conservative_force(energy, points)
-        return PotentialOutput(energy=energy, force=force)
+        energies = pred.energies.view(*positions.shape[:-1], 1) * HARTREE_TO_EV
+        forces = self.calculate_conservative_forces(energies, positions)
+        return PotentialOutput(energies=energies, forces=forces)
         
 
     def load_model(self, model_path):
@@ -38,6 +38,6 @@ class AniPotential(BasePotential):
     def data_formatter(self, pos):
         n_atoms = self.n_atoms
         n_data = pos.numel() // (n_atoms * 3)
-        z = self.numbers.repeat(n_data, 1)
+        z = self.atomic_numbers.repeat(n_data, 1)
         pos = pos.view(n_data, n_atoms, 3)
         return (z, pos)

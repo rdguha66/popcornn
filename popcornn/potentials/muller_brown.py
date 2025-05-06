@@ -14,8 +14,8 @@ class MullerBrown(BasePotential):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 
-    def forward(self, points):
-        x, y = points[:,0], points[:,1]
+    def forward(self, positions):
+        x, y = positions[:,0], positions[:,1]
         total = 0.0
         for i in range(4):
             b = self.bi[i]*(x - self.xi[i])*(x - self.xi[i])
@@ -23,4 +23,4 @@ class MullerBrown(BasePotential):
             d = self.di[i]*(y - self.yi[i])*(y - self.yi[i])
             total += self.ai[i]*torch.exp(b + c + d)
 
-        return PotentialOutput(energy=total, force=None)
+        return PotentialOutput(energies=total, forces=None)
