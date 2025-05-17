@@ -28,7 +28,7 @@ class BasePotential(nn.Module):
         self.n_atoms = len(images.atomic_numbers) if images.atomic_numbers is not None else None
         self.pbc = images.pbc.to(device) if images.pbc is not None else None
         self.cell = images.cell.to(device) if images.cell is not None else None
-        self.tag = images.tags.to(device) if images.tags is not None else None
+        self.fix_positions = (images.tags==0).to(device) if images.tags is not None else None
         self.point_option = 0
         self.point_arg = 0
         if add_azimuthal_dof:
@@ -50,9 +50,10 @@ class BasePotential(nn.Module):
             create_graph=create_graph,
         )[0]
     
-    def calculate_conservative_forces_decomposed(self, energies_decomposed, position, create_graph=True):
-        self._forceterm_fxn = torch.vmap(
-            lambda vec: torch.autograd.grad(
+    @staticmethod
+    def calculate_conservative_forces_decomposed(energies_decomposed, position, create_graph=True):
+        _forceterm_fxn = torch.vmap(
+            lambda vec: -torch.autograd.grad(
                 energies_decomposed.flatten(), 
                 position,
                 grad_outputs=vec,
@@ -60,9 +61,9 @@ class BasePotential(nn.Module):
             )[0],
         )
         inp_vec = torch.eye(
-            energies_decomposed.shape[1], device=self.device
+            energies_decomposed.shape[1], device=energies_decomposed.device
         ).repeat(1, energies_decomposed.shape[0])
-        return -1*self._forceterm_fxn(inp_vec).transpose(0, 1)
+        return _forceterm_fxn(inp_vec).transpose(0, 1)
 
     def forward(
             self,

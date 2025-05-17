@@ -6,35 +6,6 @@ from ase.calculators.singlepoint import SinglePointCalculator
 # from popcornn.tools.preprocess import Images
 
 
-def pair_displacement(
-        initial_atoms: ase.Atoms, 
-        final_atoms: ase.Atoms,
-    ) -> np.ndarray:
-    """
-    Pair displacement between two Atoms objects.
-
-    Parameters:
-    -----------
-    initial_atoms : ase.Atoms
-        Initial Atoms object.
-    final_atoms : ase.Atoms
-        Final Atoms object.
-
-    Returns:
-    --------
-    np.ndarray
-        Pair displacement.
-    """
-    assert len(initial_atoms) == len(final_atoms), "Initial and final atoms must have the same number of atoms."
-    pair = initial_atoms + final_atoms
-    vec = pair.get_distances(
-        [i for i in range(len(initial_atoms))],
-        [i + len(initial_atoms) for i in range(len(initial_atoms))],
-        mic=True,
-        vector=True,
-    )
-    return vec
-
 def output_to_atoms(output, ref_images):
     """
     Convert output to ase.Atoms.
@@ -53,37 +24,62 @@ def output_to_atoms(output, ref_images):
     """
     images = []
     n_atoms = len(ref_images.atomic_numbers)
-    for positions, energy, velocities, forces in zip(output.position, output.energy, output.velocity, output.force):
+    for i in range(len(output)):
         atoms = ase.Atoms(
-            atomic_numbers=ref_images.atomic_numbers.detach().cpu().numpy(),
-            positions=positions.detach().cpu().numpy().reshape(n_atoms, 3),
-            velocities=velocities.detach().cpu().numpy().reshape(n_atoms, 3),
+            numbers=ref_images.atomic_numbers.detach().cpu().numpy(),
+            positions=output.positions[i].detach().cpu().numpy().reshape(n_atoms, 3),
+            velocities=output.velocities[i].detach().cpu().numpy().reshape(n_atoms, 3) if output.velocities is not None else None,
             pbc=ref_images.pbc.detach().cpu().numpy(),
             cell=ref_images.cell.detach().cpu().numpy(),
             tags=ref_images.tags.detach().cpu().numpy(),
         )
         calc = SinglePointCalculator(
             atoms,
-            energy=energy.detach().cpu().numpy().item(),
-            forces=forces.detach().cpu().numpy().reshape(n_atoms, 3),
+            energy=output.energies[i].detach().cpu().numpy().item() if output.energies is not None else None,
+            forces=output.forces[i].detach().cpu().numpy().reshape(n_atoms, 3) if output.forces is not None else None,
         )
         atoms.calc = calc
         images.append(atoms)
     return images
 
-def wrap_points(
-        points: torch.Tensor,
+def wrap_positions(
+        positions: torch.Tensor,
         cell: torch.Tensor,
-        center: float = 0
+        pbc: torch.Tensor,
+        center: torch.Tensor = 0.5,
     ) -> torch.Tensor:
     """
     PyTorch implementation of ase.geometry.wrap_positions function.
-    Assume periodic boundary conditions for all dimensions.
+    This function is also used for interatomic distances under minimum image convention.
+
+    Parameters:
+    -----------
+    positions: float tensor of shape (n, 3)
+        Positions of the atoms
+    cell: float tensor of shape (3, 3)
+        Unit cell vectors.
+    pbc: one or 3 bool
+        For each axis in the unit cell decides whether the positions
+        will be moved along this axis.
+    center: float tensor of shape (3,)
+        The positons in fractional coordinates that the new positions
+        will be nearest possible to.
     """
 
-    fractional = torch.linalg.solve(cell.T, positions.view(*points.shape[:-1], -1, 3).transpose(-1, -2)).transpose(-1, -2)
+    if not isinstance(center, torch.Tensor):
+        center = torch.ones(cell.shape[0], dtype=cell.dtype, device=cell.device) * center
 
-    # fractional[..., :, self.pbc] %= 1.0
-    fractional = (fractional + center) % 1.0 - center    # TODO: Modify this to handle partially true PBCs
+    if not isinstance(pbc, torch.Tensor):
+        pbc = torch.ones(cell.shape[0], dtype=torch.bool, device=cell.device) * pbc
+    shift = center - 0.5
 
-    return torch.matmul(fractional, cell).view(*points.shape)
+    # Don't change coordinates when pbc is False
+    shift[~pbc] = 0.0
+
+    assert cell[pbc].any(dim=1).all(), (cell, pbc)
+
+    fractional = torch.linalg.solve(cell.T, positions.view(-1, cell.shape[-1]).T).T - shift
+
+    fractional[:, pbc] = fractional[:, pbc] % 1.0 - shift[pbc]
+
+    return torch.matmul(fractional, cell).view(*positions.shape)

@@ -3,7 +3,7 @@ import numpy as np
 import scipy as sp
 from dataclasses import dataclass
 from einops import rearrange
-from popcornn.tools import Images, wrap_points
+from popcornn.tools import Images, wrap_positions
 from popcornn.potentials.base_potential import BasePotential, PotentialOutput
 from typing import Callable, Any
 from ase import Atoms
@@ -35,6 +35,12 @@ class PathOutput():
     energies_decomposed: torch.Tensor = None
     forces: torch.Tensor = None
     forces_decomposed: torch.Tensor = None
+
+    def __len__(self):
+        """
+        Return the number of images.
+        """
+        return len(self.positions)
 
 
 class BasePath(torch.nn.Module):
@@ -69,7 +75,6 @@ class BasePath(torch.nn.Module):
             images: Images,
             device: torch.device = None,
             find_ts: bool = True,
-            **kwargs: Any
         ) -> None:
         """
         Initialize the BasePath.
@@ -80,8 +85,6 @@ class BasePath(torch.nn.Module):
             The initial point of the path.
         final_position : torch.Tensor
             The final point of the path.
-        **kwargs : Any
-            Additional keyword arguments.
         """
         super().__init__()
         self.neval = 0
@@ -89,14 +92,14 @@ class BasePath(torch.nn.Module):
         self.potential = None
         self.initial_position = images.positions[0].to(device)
         self.final_position = images.positions[-1].to(device)
-        self.vec = images.vec.to(device)
         self._inp_reshaped = None
         if images.pbc is not None and images.pbc.any():
-            def transform(points):
-                return wrap_points(points, images.cell)
+            def transform(positions, **kwargs):
+                return wrap_positions(positions, images.cell, images.pbc, **kwargs)
             self.transform = transform
         else:
             self.transform = None
+        self.fix_positions = (images.tags==0).to(device) if images.tags is not None else None
         self.device = device
         self.t_init = torch.tensor(
             [[0]], dtype=torch.float64, device=self.device
@@ -124,7 +127,6 @@ class BasePath(torch.nn.Module):
     def get_positions(
             self,
             time: torch.Tensor,
-            *args: Any
     ) -> torch.Tensor:
         """
         Compute the geometric path at the given time.
@@ -133,10 +135,6 @@ class BasePath(torch.nn.Module):
         -----------
         time : torch.Tensor
             The time at which to evaluate the geometric path.
-        y : Any
-            Placeholder for additional arguments.
-        *args : Any
-            Additional arguments.
 
         Returns:
         --------
