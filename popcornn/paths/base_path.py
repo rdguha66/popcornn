@@ -74,6 +74,7 @@ class BasePath(torch.nn.Module):
             self,
             images: Images,
             device: torch.device = None,
+            dtype: torch.dtype = None,
             find_ts: bool = True,
         ) -> None:
         """
@@ -99,13 +100,14 @@ class BasePath(torch.nn.Module):
             self.transform = transform
         else:
             self.transform = None
-        self.fix_positions = (images.tags==0).to(device) if images.tags is not None else None
+        self.fix_positions = images.fix_positions
         self.device = device
+        self.dtype = dtype
         self.t_init = torch.tensor(
-            [[0]], dtype=torch.float64, device=self.device
+            [[0]], dtype=self.dtype, device=self.device
         )
         self.t_final = torch.tensor(
-            [[1]], dtype=torch.float64, device=self.device
+            [[1]], dtype=self.dtype, device=self.device
         )
         self.ts_time = None
         self.ts_region = None
@@ -197,7 +199,6 @@ class BasePath(torch.nn.Module):
             An instance of the PathOutput class containing the computed path, potential, velocities, force, and time.
         """
         time = self._reshape_in(time)
-        time = time.to(torch.float64).to(self.device)
 
         self.neval += time.numel()
 

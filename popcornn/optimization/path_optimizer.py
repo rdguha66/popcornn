@@ -25,12 +25,14 @@ class PathOptimizer():
             ts_region_loss_scales=torch.ones(1),
             ts_region_loss_schedulers=None,
             device='cpu',
+            dtype=None,
             **config
         ):
         super().__init__()
         
         self.find_ts = find_ts
         self.device=device
+        self.dtype=dtype
         self.iteration = 0
         
         ####  Initialize transition state loss information  #####
@@ -102,14 +104,14 @@ class PathOptimizer():
             self,
             path,
             integrator,
-            t_init=torch.tensor([0.], dtype=torch.float64),
-            t_final=torch.tensor([1.], dtype=torch.float64),
+            t_init=torch.tensor([0.]),
+            t_final=torch.tensor([1.]),
             time=None,
             update_path=True
         ):
         self.optimizer.zero_grad()
-        t_init = t_init.to(torch.float64).to(self.device)
-        t_final = t_final.to(torch.float64).to(self.device)
+        t_init = t_init.to(self.dtype).to(self.device)
+        t_final = t_final.to(self.dtype).to(self.device)
         ode_fxn_scales = {
             name : schd.get_value() for name, schd in self.ode_fxn_schedulers.items()
         }

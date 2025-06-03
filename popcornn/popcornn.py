@@ -27,7 +27,8 @@ class Popcornn:
             num_record_points: int = 101,
             output_dir: str | None = None,
             device: str | None = None,
-            seed: int | None = None,
+            dtype: str = "float32",
+            seed: int | None = 0,
     ):
         """
         Initialize the Popcornn class.
@@ -38,6 +39,7 @@ class Popcornn:
             num_record_points (int): Number of points to record along the path when returning and saving the optimized path.
             output_dir (str | None): Directory to save the output files. If None, no files will be saved.
             device (str | None): Device to use for optimization. If None, will use 'cuda' if available, otherwise 'cpu'.
+            dtype (str): Data type to use for optimization. Can be 'float32' or 'float64'.
             seed (int | None): Random seed for reproducibility. If None, no seed is set.
         """
         # Set device
@@ -47,15 +49,23 @@ class Popcornn:
             torch.cuda.empty_cache()
         self.device = device
 
+        # Set dtype
+        if dtype == "float32":
+            self.dtype = torch.float32
+        elif dtype == "float64":
+            self.dtype = torch.float64
+        else:
+            raise ValueError(f"Invalid dtype: {dtype}. Use 'float32' or 'float64'.")
+
         # Set random seed
         if seed is not None:
             torch.manual_seed(seed)
 
         # Process images
-        self.images = process_images(images, device=self.device)
+        self.images = process_images(images, device=self.device, dtype=self.dtype)
 
         # Get path prediction method
-        self.path = get_path(images=self.images, **path_params, device=self.device)
+        self.path = get_path(images=self.images, **path_params, device=self.device, dtype=self.dtype)
 
         # Randomly initialize the path, otherwise a straight line
         if len(images) > 2:
@@ -124,14 +134,14 @@ class Popcornn:
             os.makedirs(output_dir, exist_ok=True)
 
         # Get potential energy function
-        potential = get_potential(images=self.images, **potential_params, device=self.device)
+        potential = get_potential(images=self.images, **potential_params, device=self.device, dtype=self.dtype)
         self.path.set_potential(potential)
 
         # Path optimization tools
-        integrator = ODEintegrator(**integrator_params, device=self.device)
+        integrator = ODEintegrator(**integrator_params, device=self.device, dtype=self.dtype)
 
         # Gradient descent path optimizer
-        optimizer = PathOptimizer(path=self.path, **optimizer_params, device=self.device)
+        optimizer = PathOptimizer(path=self.path, **optimizer_params, device=self.device, dtype=self.dtype)
 
         # Create output directories
         if output_dir is not None:
@@ -150,9 +160,9 @@ class Popcornn:
             # Save the path
             if output_dir is not None:
                 time = path_integral.t.flatten()
-                ts_time = self.path.ts_time
+                ts_time = torch.tensor([self.path.ts_time], device=self.device, dtype=self.dtype)
                 path_output = self.path(time, return_velocities=True, return_energies=True, return_forces=True)
-                ts_output = self.path(torch.tensor([ts_time]), return_velocities=True, return_energies=True, return_forces=True)
+                ts_output = self.path(ts_time, return_velocities=True, return_energies=True, return_forces=True)
                 
                 with open(os.path.join(log_dir, f"output_{optim_idx}.json"), 'w') as file:
                     json.dump(
@@ -179,10 +189,10 @@ class Popcornn:
                 break
             
         time = torch.linspace(self.path.t_init.item(), self.path.t_final.item(), self.num_record_points, device=self.device)
-        ts_time = self.path.ts_time
+        ts_time = torch.tensor([self.path.ts_time], device=self.device, dtype=self.dtype)
         path_output = self.path(time, return_velocities=True, return_energies=True, return_forces=True)
-        ts_output = self.path(torch.tensor([ts_time]), return_velocities=True, return_energies=True, return_forces=True)
-        if issubclass(self.images.dtype, Atoms) and output_ase_atoms:
+        ts_output = self.path(ts_time, return_velocities=True, return_energies=True, return_forces=True)
+        if issubclass(self.images.image_type, Atoms) and output_ase_atoms:
             images, ts_images = output_to_atoms(path_output, self.images), output_to_atoms(ts_output, self.images)
             return images, ts_images[0]
         else:
