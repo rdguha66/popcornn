@@ -64,7 +64,7 @@ def process_images(raw_images, device, dtype):
             raw_images = np.load(raw_images)
         elif raw_images.endswith('.pt'):
             raw_images = torch.load(raw_images)
-        elif raw_images.endswith('.xyz'):
+        elif raw_images.endswith('.xyz') or raw_images.endswith('.traj'):
             raw_images = read(raw_images, index=':')
         else:
             raise ValueError(f"Cannot handle file type for {raw_images}.")
