@@ -52,7 +52,7 @@ class RepelPotential(BasePotential):
             + self.beta * self.r0 / r ** 2
         )
         de_dv = de_dr[:, :, None] * v / r[:, :, None]
-        forces_decomposed = torch.zeros(*energies_decomposed.shape, *positions_3d.shape[1:], device=positions.device, dtype=positions.dtype)
+        forces_decomposed = torch.zeros(*energies_decomposed.shape, *positions_3d.shape[1:], device=self.device, dtype=self.dtype)
         forces_decomposed[:, torch.arange(self.ind.shape[1], device=self.device), self.ind[0], :] = de_dv
         forces_decomposed[:, torch.arange(self.ind.shape[1], device=self.device), self.ind[1], :] = -de_dv
         forces_decomposed = forces_decomposed.view(*energies_decomposed.shape, *positions.shape[1:])
@@ -68,7 +68,7 @@ class RepelPotential(BasePotential):
         """
         Set the r0_ij values for the potential
         """
-        radii = torch.tensor([covalent_radii[n] for n in atomic_numbers], device=self.device)
+        radii = torch.tensor([covalent_radii[n] for n in atomic_numbers], device=self.device, dtype=self.dtype)
         r0 = radii.view(-1, 1) + radii.view(1, -1)
         self.ind = torch.triu_indices(r0.shape[0], r0.shape[1], offset=1, device=self.device)
         # if self.fix_positions is not None:

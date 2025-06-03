@@ -22,13 +22,13 @@ class PotentialOutput():
 
 
 class BasePotential(nn.Module):
-    def __init__(self, images, device='cpu', add_azimuthal_dof=False, add_translation_dof=False, **kwargs) -> None:
+    def __init__(self, images, device='cpu', dtype=None, add_azimuthal_dof=False, add_translation_dof=False, **kwargs) -> None:
         super().__init__()
-        self.atomic_numbers = images.atomic_numbers.to(device) if images.atomic_numbers is not None else None
+        self.atomic_numbers = images.atomic_numbers if images.atomic_numbers is not None else None
         self.n_atoms = len(images.atomic_numbers) if images.atomic_numbers is not None else None
-        self.pbc = images.pbc.to(device) if images.pbc is not None else None
-        self.cell = images.cell.to(device) if images.cell is not None else None
-        self.fix_positions = (images.tags==0).to(device) if images.tags is not None else None
+        self.pbc = images.pbc if images.pbc is not None else None
+        self.cell = images.cell if images.cell is not None else None
+        self.fix_positions = images.fix_positions
         self.point_option = 0
         self.point_arg = 0
         if add_azimuthal_dof:
@@ -37,6 +37,7 @@ class BasePotential(nn.Module):
         elif add_translation_dof:
             self.point_option = 2
         self.device = device
+        self.dtype = dtype
         
         # Put model in eval mode
         self.eval()

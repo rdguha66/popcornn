@@ -31,7 +31,7 @@ def output_to_atoms(output, ref_images):
             velocities=output.velocities[i].detach().cpu().numpy().reshape(n_atoms, 3) if output.velocities is not None else None,
             pbc=ref_images.pbc.detach().cpu().numpy(),
             cell=ref_images.cell.detach().cpu().numpy(),
-            tags=ref_images.tags.detach().cpu().numpy(),
+            constraints=[ase.constraints.FixAtoms(indices=np.where(ref_images.fix_positions[i])[0])] if ref_images.fix_positions is not None else None,
         )
         calc = SinglePointCalculator(
             atoms,
@@ -83,3 +83,50 @@ def wrap_positions(
     fractional[:, pbc] = fractional[:, pbc] % 1.0 - shift[pbc]
 
     return torch.matmul(fractional, cell).view(*positions.shape)
+
+def radius_graph(
+        positions: torch.Tensor,
+        cell: torch.Tensor,
+        pbc: torch.Tensor,
+        cutoff: float,
+        n_data: int,
+        n_atoms: int,
+    ) -> torch.Tensor:
+    """
+    Create a graph of atom pairs within a cutoff distance.
+
+    Parameters:
+    -----------
+    positions: float tensor of shape (n_data * n_atoms, 3)
+        Positions of the atoms.
+    cell: float tensor of shape (3, 3)
+        Unit cell vectors.
+    pbc: one or 3 bool
+        For each axis in the unit cell decides whether the positions
+        will be moved along this axis.
+    cutoff: float
+        Cutoff distance for the graph.
+    n_data: int
+        Number of data points.
+    n_atoms: int
+        Number of atoms in each data point.
+
+    Returns:
+    --------
+    torch.Tensor
+        Graph of atom pairs within the cutoff distance.
+    """
+    # Create all-pairs distance matrix
+    edge_index = torch.triu_indices(n_atoms, n_atoms, offset=1)
+    edge_index = edge_index[:, None, :] + torch.arange(n_atoms, device=positions.device)[None, :, None] * n_data
+    edge_index = edge_index.view(2, -1)
+    disp = positions[:, edge_index[0]] - positions[:, edge_index[1]]
+
+    # Apply periodic boundary conditions if cell is provided
+    if pbc.any():
+        disp = wrap_positions(disp, cell, pbc, center=1.0)
+
+    # Create graph based on cutoff distance
+    edge_index = edge_index[:, disp.norm(dim=-1) < cutoff]
+
+    return edge_index

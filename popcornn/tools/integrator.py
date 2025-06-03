@@ -26,6 +26,7 @@ class ODEintegrator(Metrics):
             path_ode_names=None,
             path_ode_scales=None,
             device=None,
+            dtype=None,
             **kwargs
         ):
         super().__init__(device, save_energy_force=True)
@@ -35,6 +36,7 @@ class ODEintegrator(Metrics):
             f"Computation must be 'parallel' or 'serial', instead got {computation}"
         self.N_integrals = 0
         self.device = device
+        self.dtype = dtype
         
         #self.rtol = rtol
         #self.atol = atol
@@ -86,8 +88,8 @@ class ODEintegrator(Metrics):
                 method=self.method,
                 atol=atol,
                 rtol=rtol,
-                t_init=torch.tensor([0], dtype=torch.float64),
-                t_final=torch.tensor([1], dtype=torch.float64),
+                t_init=torch.tensor([0], device=self.device, dtype=self.dtype),
+                t_final=torch.tensor([1], device=self.device, dtype=self.dtype),
                 device=self.device,
                 **kwargs
             )
@@ -101,9 +103,9 @@ class ODEintegrator(Metrics):
                 rtol=rtol,
                 remove_cut=remove_cut,
                 max_path_change=None,
-                y0=torch.tensor([0], dtype=torch.float, device=self.device),
-                t_init=torch.tensor([0], dtype=torch.float64),
-                t_final=torch.tensor([1], dtype=torch.float64),
+                y0=torch.tensor([0], device=self.device, dtype=self.dtype),
+                t_init=torch.tensor([0], device=self.device, dtype=self.dtype),
+                t_final=torch.tensor([1], device=self.device, dtype=self.dtype),
                 max_batch=max_batch,
                 error_calc_idx=0,
                 device=self.device,
@@ -128,8 +130,8 @@ class ODEintegrator(Metrics):
             path,
             ode_fxn_scales={},
             loss_scales={},
-            t_init=torch.tensor([0], dtype=torch.float64),
-            t_final=torch.tensor([1], dtype=torch.float64),
+            t_init=torch.tensor([0]),
+            t_final=torch.tensor([1]),
             times=None,
         ):
         # Update loss parameters
