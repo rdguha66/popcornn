@@ -44,5 +44,8 @@ def get_potential(potential, **kwargs):
     elif name == "escaip":
         from .escaip import EScAIPPotential
         return EScAIPPotential(**kwargs)
+    elif name == "uma":
+        from .uma import UMAPotential
+        return UMAPotential(**kwargs)
     else:
         raise ValueError(f"Cannot handle potential type {name}")
