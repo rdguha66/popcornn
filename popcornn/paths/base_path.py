@@ -266,13 +266,13 @@ class BasePath(torch.nn.Module):
     def _ts_search_reformat(self, time, energies, forces, idx_shift):
         if len(time.shape) == 3:
             # Remove repeated evaluations
-            unique_mask = torch.all(time[0,1:] - time[0,:-1] > 1e-13, dim=-1)
+            unique_mask = torch.all(torch.abs(time[0,1:] - time[0,:-1]) > 1e-7, dim=-1)
             unique_mask = torch.concatenate([unique_mask, torch.tensor([True], device=self.device)])
             time = time[:,unique_mask]
             energies = energies[:,unique_mask]
             forces = forces[:,unique_mask]
 
-            if len(time) > 1 and torch.all(torch.abs(time[:-1,-1] - time[1:,0]) < 1e-13):
+            if len(time) > 1 and torch.all(torch.abs(time[:-1,-1] - time[1:,0]) < 1e-7):
                 time = time[:,:-1]
                 energies = energies[:,:-1]
                 forces = forces[:,:-1]
@@ -306,7 +306,7 @@ class BasePath(torch.nn.Module):
             N_input_times = N_input_times*(time.shape[1] - 1) - 2
         if N_input_times < 11:
             time = torch.reshape(time, (-1, time.shape[-1]))
-            time = torch.linspace(time[1,0], time[-2,0], 15)
+            time = torch.linspace(time[1,0], time[-2,0], 15, device=self.device, dtype=self.dtype)
             calc_energies = True
             calc_forces = True
         
@@ -344,7 +344,7 @@ class BasePath(torch.nn.Module):
         interp_times = []
         top_N = np.max([N_interp//200, 1])
         ts_time_scale = 0
-        self.ts_force_mag = torch.tensor([np.inf], device=self.device)
+        self.ts_force_mag = torch.tensor([np.inf], device=self.device, dtype=self.dtype)
         for imin, imax in idx_ranges:
             t_interp = time[imin:imax].detach().cpu().numpy()
             #print(time.shape, t_interp.shape, energies[imin:imax].shape, forces[imin:imax].shape)
@@ -410,6 +410,8 @@ class BasePath(torch.nn.Module):
         for j in range(3):
             std = np.std(interp_Es)
             mask = interp_Es > max_E - 2*std
+            if sum(mask) < 1:
+                break
             interp_Es = interp_Es[mask]
             interp_Fs = interp_Fs[mask]
             interp_magFs = interp_magFs[mask]
@@ -417,14 +419,14 @@ class BasePath(torch.nn.Module):
         
         # TS is the lowest gradient point
         ts_idx = np.argmin(interp_magFs)
-        self.ts_time = torch.tensor(interp_times[ts_idx], device=self.device)
-        self.ts_energy = torch.tensor(interp_Es[ts_idx], device=self.device)
-        self.ts_force = torch.tensor(interp_Fs[ts_idx], device=self.device)
-        self.ts_force_mag = torch.tensor(interp_magFs[ts_idx], device=self.device)
+        self.ts_time = torch.tensor(interp_times[ts_idx], device=self.device, dtype=self.dtype)
+        self.ts_energy = torch.tensor(interp_Es[ts_idx], device=self.device, dtype=self.dtype)
+        self.ts_force = torch.tensor(interp_Fs[ts_idx], device=self.device, dtype=self.dtype)
+        self.ts_force_mag = torch.tensor(interp_magFs[ts_idx], device=self.device, dtype=self.dtype)
 
         if evaluate_ts:
-            ts_output = self.forward(torch.tensor(
-                [self.ts_time]),
+            ts_output = self.forward(
+                torch.tensor([self.ts_time], device=self.device, dtype=self.dtype),
                 return_velocities=True,
                 return_energies=True,
                 return_forces=True

@@ -32,6 +32,9 @@ class Images():
     atomic_numbers: torch.Tensor = None
     pbc: torch.Tensor = None
     cell: torch.Tensor = None
+    tags: torch.Tensor = None
+    charge: torch.Tensor = None
+    spin: torch.Tensor = None
 
     def __len__(self):
         """
@@ -52,6 +55,12 @@ class Images():
             self.cell = self.cell.to(device)
         if self.fix_positions is not None:
             self.fix_positions = self.fix_positions.to(device)
+        if self.tags is not None:
+            self.tags = self.tags.to(device)
+        if self.charge is not None:
+            self.charge = self.charge.to(device)
+        if self.spin is not None:
+            self.spin = self.spin.to(device)
         return self
 
 
@@ -95,15 +104,22 @@ def process_images(raw_images, device, dtype):
         assert np.all(image.get_pbc() == raw_images[0].get_pbc() for image in raw_images), "All images must have the same pbc."
         pbc = torch.tensor(raw_images[0].get_pbc(), device=device, dtype=torch.bool)
         assert np.all(image.get_cell() == raw_images[0].get_cell() for image in raw_images), "All images must have the same cell."
-        cell = torch.tensor(raw_images[0].get_cell(), device=device, dtype=torch.float)
+        cell = torch.tensor(raw_images[0].get_cell().array, device=device, dtype=torch.float)
         assert np.all(image.constraints.__repr__() == raw_images[0].constraints.__repr__() for image in raw_images), "All images must have the same constraints."
-        fix_positions = torch.zeros_like(atomic_numbers, dtype=torch.bool)
+        fix_positions = torch.zeros_like(positions[0], dtype=torch.bool)
+        fix_positions = fix_positions.view(-1, 3)
         for constraint in raw_images[0].constraints:
             if isinstance(constraint, FixAtoms):
                 fix_positions[constraint.index] = True
             else:
                 raise ValueError(f"Cannot handle constraint type {type(constraint)}.")
         fix_positions = fix_positions.flatten()
+        assert np.all(image.get_tags() == raw_images[0].get_tags() for image in raw_images), "All images must have the same tags."
+        tags = torch.tensor(raw_images[0].get_tags(), device=device, dtype=torch.int)
+        assert np.all(image.info.get('charge', 0) == raw_images[0].info.get('charge', 0) for image in raw_images), "All images must have the same charge."
+        charge = torch.tensor(raw_images[0].info.get('charge', 0), device=device, dtype=torch.int)
+        assert np.all(image.info.get('spin', 0) == raw_images[0].info.get('spin', 0) for image in raw_images), "All images must have the same spin."
+        spin = torch.tensor(raw_images[0].info.get('spin', 0), device=device, dtype=torch.int)
         processed_images = Images(
             image_type=image_type,
             positions=positions,
@@ -111,6 +127,9 @@ def process_images(raw_images, device, dtype):
             atomic_numbers=atomic_numbers,
             pbc=pbc,
             cell=cell,
+            tags=tags,
+            charge=charge,
+            spin=spin,
         )
     else:
         raise ValueError(f"Cannot handle data type {dtype}.")

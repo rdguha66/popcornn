@@ -9,17 +9,19 @@ class MLPpath(BasePath):
     Multilayer Perceptron (MLP) path class for generating geometric paths.
 
     Args:
-        n_embed (int, optional): Number of embedding dimensions. Defaults to 32.
-        depth (int, optional): Depth of the MLP. Defaults to 3.
+        n_embed (int, optional): Number of embedding dimensions. Defaults to 1.
+        depth (int, optional): Depth of the MLP. Defaults to 2.
+        activation (str, optional): Activation function to use. Defaults to "gelu".
         base: Path class to correct. Defaults to LinearPath.
+        unwrap_positions (bool, optional): Whether to unwrap positions. Defaults to True.
     """
     def __init__(
         self,
-        # n_embed: int = 32,
         n_embed: int = 1,
-        depth: int = 3,
-        activation: str = "selu",
+        depth: int = 2,
+        activation: str = "gelu",
         base: BasePath = None,
+        unwrap_positions: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -42,7 +44,7 @@ class MLPpath(BasePath):
         self.mlp.to(self.device)
         self.neval = 0
 
-        self.base = base if base is not None else LinearPath(**kwargs)
+        self.base = base if base is not None else LinearPath(unwrap_positions=unwrap_positions, **kwargs)
         
         print("Number of trainable parameters in MLP:", sum(p.numel() for p in self.parameters() if p.requires_grad))
         print(self.mlp)
@@ -50,7 +52,7 @@ class MLPpath(BasePath):
     def get_positions(self, time: float):
         mlp_out = self.mlp(time) * (1 - time) * time #* 4
         if self.fix_positions is not None:
-            mlp_out[:, self.fix_positions.repeat_interleave(3)] = 0.0
+            mlp_out[:, self.fix_positions] = 0.0
         base_out = self.base.get_positions(time) #* (1 - (1 - time) * time * 4)
         out = base_out + mlp_out
         return out
